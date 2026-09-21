@@ -3,6 +3,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -46,30 +47,34 @@ func add(taskDescription string) {
 
 // Start parses the command line arguments and calls the appropriate function
 // to handle the requested action.
-func Start() {
+func Start(args []string) error {
 	// Subcommands
 	addCmd := flag.NewFlagSet("add", flag.ExitOnError)
 	deleteCmd := flag.NewFlagSet("delete", flag.ExitOnError)
 	updateCmd := flag.NewFlagSet("update", flag.ExitOnError)
 
-	switch os.Args[1] {
+	switch args[0] {
 	// "add" expects 1 argument: taskDescription (string)
 	case "add": 
-		if err := addCmd.Parse(os.Args[2:]); err != nil {
+		if err := addCmd.Parse(args[1:]); err != nil {
 			fmt.Printf("parsing error: %s\n", err)
-			return
+			return err
 		}
-		taskDescription := os.Args[2]
-		fmt.Printf("adding task %s\n", taskDescription)
+
+		if addCmd.NArg() == 0 {
+			return errors.New("task description not provided")
+		}
+
+		taskDescription := addCmd.Arg(0)
 		add(taskDescription)
-	
+
 	// "delete" expects 1 argument: taskID (int)
 	case "delete": 
-		if err := deleteCmd.Parse(os.Args[2:]); err != nil {
+		if err := deleteCmd.Parse(args[1:]); err != nil {
 			fmt.Printf("parsing error: %s\n", err)
-			return
+			return err
 		}
-		taskID, err := strconv.Atoi(os.Args[2])
+		taskID, err := strconv.Atoi(deleteCmd.Arg(0))
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -77,19 +82,21 @@ func Start() {
 
 	// "update" expects 2 arguments: taskID (int), newTaskDescription (string)
 	case "update": 
-		if err := updateCmd.Parse(os.Args[2:]); err != nil {
+		if err := updateCmd.Parse(args[1:]); err != nil {
 			fmt.Printf("parsing error: %s\n", err)
-			return
+			return err
 		}
-		taskID, err := strconv.Atoi(os.Args[2])
+		taskID, err := strconv.Atoi(updateCmd.Arg(0))
 		if err != nil {
 			fmt.Println(err)
 		}
-		newTaskDescription := os.Args[3]
+		newTaskDescription := updateCmd.Arg(1) 
 		fmt.Printf("updating task %d with description %s\n", taskID, newTaskDescription)
 	default:
 		fmt.Println("unknown subcommand")
 		os.Exit(1)
 	} 
+
+	return nil
 }
 
