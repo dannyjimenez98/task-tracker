@@ -2,52 +2,18 @@
 package cli
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/dannyjimenez98/task-tracker/internal/task"
 )
 
-// Add appends a new task to the slice of tasks and writes it to the tasklist.json file.
-func add(taskDescription string) {
-
-	tasklist := task.GetTaskList()
-
-	tasks := append(tasklist, task.Task{
-		// set ID to ID of last entry of tasklist incremented by 1
-		// sets ID to 1 if tasklist is empty
-		ID: func(tasklist []task.Task) int {
-				if len(tasklist) == 0 {
-					return 1
-				}
-				return tasklist[len(tasklist) - 1].ID + 1
-			}(tasklist),
-		Description: taskDescription,
-		Status: "todo",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	})
-
-	tasklistJSON, err := json.MarshalIndent(tasks, "", "  ") 
-	if err != nil {
-		fmt.Println("marshal error: ", err)
-	}
-
-	if err := os.WriteFile("tasklist.json", tasklistJSON, 0644); err != nil {
-		fmt.Println(err)
-	}
-
-	fmt.Println("Successfully added task.")
-}
-
 // Start parses the command line arguments and calls the appropriate function
 // to handle the requested action.
-func Start(args []string) error {
+func Start(tasklist *task.Tasks, args []string) error {
 	// Subcommands
 	addCmd := flag.NewFlagSet("add", flag.ExitOnError)
 	deleteCmd := flag.NewFlagSet("delete", flag.ExitOnError)
@@ -66,7 +32,7 @@ func Start(args []string) error {
 		}
 
 		taskDescription := addCmd.Arg(0)
-		add(taskDescription)
+		tasklist.Add(taskDescription)
 
 	// "delete" expects 1 argument: taskID (int)
 	case "delete": 
