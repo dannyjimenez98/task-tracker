@@ -18,7 +18,14 @@ func add(taskDescription string) {
 	tasklist := task.GetTaskList()
 
 	tasks := append(tasklist, task.Task{
-		ID: len(tasklist) + 1,
+		// set ID to ID of last entry of tasklist incremented by 1
+		// sets ID to 1 if tasklist is empty
+		ID: func(tasklist []task.Task) int {
+				if len(tasklist) == 0 {
+					return 1
+				}
+				return tasklist[len(tasklist) - 1].ID + 1
+			}(tasklist),
 		Description: taskDescription,
 		Status: "todo",
 		CreatedAt: time.Now(),
