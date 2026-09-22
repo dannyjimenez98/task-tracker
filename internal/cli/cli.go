@@ -21,7 +21,7 @@ func Start(tasklist *task.Tasks, args []string) error {
 
 	switch args[0] {
 	// "add" expects 1 argument: taskDescription (string)
-	case "add": 
+	case "add":
 		if err := addCmd.Parse(args[1:]); err != nil {
 			fmt.Printf("parsing error: %s\n", err)
 			return err
@@ -35,19 +35,25 @@ func Start(tasklist *task.Tasks, args []string) error {
 		tasklist.Add(taskDescription)
 
 	// "delete" expects 1 argument: taskID (int)
-	case "delete": 
+	case "delete":
 		if err := deleteCmd.Parse(args[1:]); err != nil {
 			fmt.Printf("parsing error: %s\n", err)
 			return err
 		}
+
+		if deleteCmd.NArg() == 0 {
+			return errors.New("task ID not provided")
+		}
+
 		taskID, err := strconv.Atoi(deleteCmd.Arg(0))
 		if err != nil {
-			fmt.Println(err)
+			return fmt.Errorf("invalid task ID %q: %w", deleteCmd.Arg(0), err)
 		}
-		fmt.Printf("deleting task %d\n", taskID)
+
+		return tasklist.Delete(taskID)
 
 	// "update" expects 2 arguments: taskID (int), newTaskDescription (string)
-	case "update": 
+	case "update":
 		if err := updateCmd.Parse(args[1:]); err != nil {
 			fmt.Printf("parsing error: %s\n", err)
 			return err
@@ -56,13 +62,12 @@ func Start(tasklist *task.Tasks, args []string) error {
 		if err != nil {
 			fmt.Println(err)
 		}
-		newTaskDescription := updateCmd.Arg(1) 
+		newTaskDescription := updateCmd.Arg(1)
 		fmt.Printf("updating task %d with description %s\n", taskID, newTaskDescription)
 	default:
 		fmt.Println("unknown subcommand")
 		os.Exit(1)
-	} 
+	}
 
 	return nil
 }
-

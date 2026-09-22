@@ -32,14 +32,14 @@ func main() {
 	if len(tasklistJSON) == 0 {
 		tasklist = &task.Tasks{
 			Tasks: []task.Task{},
-		}	
+		}
 	} else {
 		err := json.Unmarshal(tasklistJSON, &tasklist)
 		if err != nil {
 			log.Fatalln("could not unmarshal json data: ", err)
 		}
 	}
-	
+
 	if err := cli.Start(tasklist, os.Args[1:]); err != nil {
 		panic(err)
 	}
@@ -47,6 +47,10 @@ func main() {
 	updatedTasklistJSON, err := json.MarshalIndent(tasklist, "", "  ")
 	if err != nil {
 		log.Fatalln("could not marshal data to json: ", err)
+	}
+
+	if err := file.Truncate(0); err != nil {
+		log.Fatalln(err)
 	}
 
 	if _, err := file.Write(updatedTasklistJSON); err != nil {
