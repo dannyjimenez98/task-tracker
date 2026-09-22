@@ -37,3 +37,17 @@ func (tasklist *Tasks) Delete(taskID int) error {
 
 	return nil
 }
+
+func (tasklist *Tasks) Update(taskID int, newTaskDescription string) error {
+	// find the index of the target taskID
+	i := slices.IndexFunc(tasklist.Tasks, func(n Task) bool {
+		return n.ID == taskID
+	})
+	if i == -1 {
+		return fmt.Errorf("could not update: task with id %d not in tasklist", taskID)
+	}
+
+	tasklist.Tasks[i].Description = newTaskDescription
+
+	return nil
+}

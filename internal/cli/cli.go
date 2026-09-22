@@ -58,12 +58,19 @@ func Start(tasklist *task.Tasks, args []string) error {
 			fmt.Printf("parsing error: %s\n", err)
 			return err
 		}
+
+		if updateCmd.NArg() < 2 {
+			return errors.New("not enough arguments passed")
+		}
+
 		taskID, err := strconv.Atoi(updateCmd.Arg(0))
 		if err != nil {
 			fmt.Println(err)
 		}
 		newTaskDescription := updateCmd.Arg(1)
-		fmt.Printf("updating task %d with description %s\n", taskID, newTaskDescription)
+
+		return tasklist.Update(taskID, newTaskDescription)
+
 	default:
 		fmt.Println("unknown subcommand")
 		os.Exit(1)

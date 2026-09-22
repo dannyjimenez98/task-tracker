@@ -7,6 +7,112 @@ import (
 	"github.com/dannyjimenez98/task-tracker/internal/task"
 )
 
+func TestUpdateTask(t *testing.T) {
+	inputTasklist := []task.Task{
+		{
+			ID:          1,
+			Description: "task 1",
+		},
+		{
+			ID:          2,
+			Description: "task 2",
+		},
+		{
+			ID:          3,
+			Description: "task 3",
+		},
+	}
+
+	tests := []struct {
+		name       string
+		tasks      []task.Task
+		args       []string
+		wantOutput []task.Task
+		wantErr    bool
+	}{
+		{
+			name:  "update task",
+			tasks: inputTasklist,
+			args:  []string{"update", "2", "updated task 2"},
+			wantOutput: []task.Task{
+				inputTasklist[0],
+				{ID: 2, Description: "updated task 2"},
+				inputTasklist[2],
+			},
+			wantErr: false,
+		},
+		{
+			name:       "update nonexistent task ID",
+			tasks:      inputTasklist,
+			args:       []string{"update", "99", "updated task"},
+			wantOutput: inputTasklist,
+			wantErr:    true,
+		},
+		{
+			name:       "update in empty task list",
+			tasks:      []task.Task{},
+			args:       []string{"update", "1", "updated task"},
+			wantOutput: []task.Task{},
+			wantErr:    true,
+		},
+		{
+			name:       "update without task ID and description",
+			tasks:      inputTasklist,
+			args:       []string{"update"},
+			wantOutput: inputTasklist,
+			wantErr:    true,
+		},
+		{
+			name:       "update without description",
+			tasks:      inputTasklist,
+			args:       []string{"update", "2"},
+			wantOutput: inputTasklist,
+			wantErr:    true,
+		},
+		{
+			name:       "update with invalid task ID",
+			tasks:      inputTasklist,
+			args:       []string{"update", "abc", "updated task"},
+			wantOutput: inputTasklist,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tasklist := task.Tasks{
+				Tasks: make([]task.Task, len(tt.tasks)),
+			}
+			copy(tasklist.Tasks, tt.tasks)
+
+			err := cli.Start(&tasklist, tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Start() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+
+			// Check that IDs remain unchanged and descriptions
+			// match the expected result for every task.
+			for i, want := range tt.wantOutput {
+				got := tasklist.Tasks[i]
+
+				if got.ID != want.ID {
+					t.Errorf(
+						"task[%d].ID = %d, want %d",
+						i, got.ID, want.ID,
+					)
+				}
+
+				if got.Description != want.Description {
+					t.Errorf(
+						"task[%d].Description = %q, want %q",
+						i, got.Description, want.Description,
+					)
+				}
+			}
+		})
+	}
+}
+
 func TestDeleteTask(t *testing.T) {
 	inputTasklist := []task.Task{
 		{
