@@ -23,7 +23,7 @@
     },
     {
       "id": 4,
-      "description": "schedule dinner with Paul Allen",
+      "description": "cancel dinner with Paul Allen",
       "status": "todo",
       "createdAt": "2026-09-21T21:21:04.105164-04:00",
       "updatedAt": "2026-09-21T21:21:04.105164-04:00"
