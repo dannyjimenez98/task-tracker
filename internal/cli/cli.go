@@ -18,6 +18,8 @@ func Start(tasklist *task.Tasks, args []string) error {
 	addCmd := flag.NewFlagSet("add", flag.ExitOnError)
 	deleteCmd := flag.NewFlagSet("delete", flag.ExitOnError)
 	updateCmd := flag.NewFlagSet("update", flag.ExitOnError)
+	markInProgressCmd := flag.NewFlagSet("mark-in-progress", flag.ExitOnError)
+	markDoneCmd := flag.NewFlagSet("mark-done", flag.ExitOnError)
 
 	switch args[0] {
 	// "add" expects 1 argument: taskDescription (string)
@@ -70,6 +72,42 @@ func Start(tasklist *task.Tasks, args []string) error {
 		newTaskDescription := updateCmd.Arg(1)
 
 		return tasklist.Update(taskID, newTaskDescription)
+
+	// "mark-in-progress" expects 1 argument: taskID (int)
+	case "mark-in-progress":
+		if err := markInProgressCmd.Parse(args[1:]); err != nil {
+			fmt.Printf("parsing error: %s\n", err)
+			return err
+		}
+
+		if markInProgressCmd.NArg() == 0 {
+			return errors.New("task ID not provided")
+		}
+
+		taskID, err := strconv.Atoi(markInProgressCmd.Arg(0))
+		if err != nil {
+			return fmt.Errorf("invalid task ID %q: %w", markInProgressCmd.Arg(0), err)
+		}
+
+		return tasklist.MarkInProgress(taskID)
+
+	// "mark-done" expects 1 argument: taskID (int)
+	case "mark-done":
+		if err := markDoneCmd.Parse(args[1:]); err != nil {
+			fmt.Printf("parsing error: %s\n", err)
+			return err
+		}
+
+		if markDoneCmd.NArg() == 0 {
+			return errors.New("task ID not provided")
+		}
+
+		taskID, err := strconv.Atoi(markDoneCmd.Arg(0))
+		if err != nil {
+			return fmt.Errorf("invalid task ID %q: %w", markDoneCmd.Arg(0), err)
+		}
+
+		return tasklist.MarkDone(taskID)
 
 	default:
 		fmt.Println("unknown subcommand")
