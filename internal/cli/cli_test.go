@@ -7,6 +7,133 @@ import (
 	"github.com/dannyjimenez98/task-tracker/internal/task"
 )
 
+func TestMarkDone(t *testing.T) {
+	inputTasklist := []task.Task{
+		{
+			ID:          1,
+			Description: "task 1",
+			Status:      "todo",
+		},
+		{
+			ID:          2,
+			Description: "task 2",
+			Status:      "in-progress",
+		},
+		{
+			ID:          3,
+			Description: "task 3",
+			Status:      "done",
+		},
+	}
+
+	tests := []struct {
+		name       string
+		tasks      []task.Task
+		args       []string
+		wantOutput []task.Task
+		wantErr    bool
+	}{
+		{
+			name:  "mark-done on todo task",
+			tasks: inputTasklist,
+			args:  []string{"mark-done", "1"},
+			wantOutput: []task.Task{
+				{ID: 1, Description: "task 1", Status: "done"},
+				inputTasklist[1],
+				inputTasklist[2],
+			},
+			wantErr: false,
+		},
+		{
+			name:  "mark-done on in-progress task",
+			tasks: inputTasklist,
+			args:  []string{"mark-done", "2"},
+			wantOutput: []task.Task{
+				inputTasklist[0],
+				{ID: 2, Description: "task 2", Status: "done"},
+				inputTasklist[2],
+			},
+			wantErr: false,
+		},
+		{
+			name:       "mark-done on done task",
+			tasks:      inputTasklist,
+			args:       []string{"mark-done", "3"},
+			wantOutput: inputTasklist,
+			wantErr:    false,
+		},
+		{
+			name:       "mark-done nonexistent task ID",
+			tasks:      inputTasklist,
+			args:       []string{"mark-done", "99"},
+			wantOutput: inputTasklist,
+			wantErr:    true,
+		},
+		{
+			name:       "mark-done in empty task list",
+			tasks:      []task.Task{},
+			args:       []string{"mark-done", "1"},
+			wantOutput: []task.Task{},
+			wantErr:    true,
+		},
+		{
+			name:       "mark-done without task ID",
+			tasks:      inputTasklist,
+			args:       []string{"mark-done"},
+			wantOutput: inputTasklist,
+			wantErr:    true,
+		},
+		{
+			name:       "mark-done with invalid task ID",
+			tasks:      inputTasklist,
+			args:       []string{"mark-done", "abc"},
+			wantOutput: inputTasklist,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tasklist := task.Tasks{
+				Tasks: make([]task.Task, len(tt.tasks)),
+			}
+			copy(tasklist.Tasks, tt.tasks)
+
+			err := cli.Start(&tasklist, tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Start() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+
+			// Check that IDs remain unchanged and descriptions
+			// match the expected result for every task.
+			for i, want := range tt.wantOutput {
+				got := tasklist.Tasks[i]
+
+				if got.ID != want.ID {
+					t.Errorf(
+						"task[%d].ID = %d, want %d",
+						i, got.ID, want.ID,
+					)
+				}
+
+				if got.Description != want.Description {
+					t.Errorf(
+						"task[%d].Description = %q, want %q",
+						i, got.Description, want.Description,
+					)
+				}
+
+				if got.Status != want.Status {
+					t.Errorf(
+						"task[%d].Status = %q, want %q",
+						i, got.Status, want.Status,
+					)
+				}
+			}
+		})
+	}
+}
+
 func TestUpdateTask(t *testing.T) {
 	inputTasklist := []task.Task{
 		{

@@ -51,3 +51,17 @@ func (tasklist *Tasks) Update(taskID int, newTaskDescription string) error {
 
 	return nil
 }
+
+func (tasklist *Tasks) MarkDone(taskID int) error {
+	// find the index of the task with taskID in tasklist slice
+	i := slices.IndexFunc(tasklist.Tasks, func(n Task) bool {
+		return n.ID == taskID
+	})
+	if i == -1 {
+		return fmt.Errorf("could not mark done: task with id %d not in tasklist", taskID)
+	}
+
+	tasklist.Tasks[i].Status = "done"
+
+	return nil
+}
