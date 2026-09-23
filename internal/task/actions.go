@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+var timestamp = CustomTime{time.Now()}
+
 // Add appends a new task to the tasklist
 func (tasklist *Tasks) Add(taskDescription string) {
 	tasklist.Tasks = append(tasklist.Tasks, Task{
@@ -19,8 +21,8 @@ func (tasklist *Tasks) Add(taskDescription string) {
 		}(),
 		Description: taskDescription,
 		Status:      "todo",
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		CreatedAt:   timestamp,
+		UpdatedAt:   timestamp,
 	})
 }
 
@@ -48,6 +50,7 @@ func (tasklist *Tasks) Update(taskID int, newTaskDescription string) error {
 	}
 
 	tasklist.Tasks[i].Description = newTaskDescription
+	tasklist.Tasks[i].UpdatedAt = timestamp
 
 	return nil
 }
@@ -62,6 +65,7 @@ func (tasklist *Tasks) MarkInProgress(taskID int) error {
 	}
 
 	tasklist.Tasks[i].Status = "in-progress"
+	tasklist.Tasks[i].UpdatedAt = timestamp
 
 	return nil
 }
@@ -76,6 +80,7 @@ func (tasklist *Tasks) MarkDone(taskID int) error {
 	}
 
 	tasklist.Tasks[i].Status = "done"
+	tasklist.Tasks[i].UpdatedAt = timestamp
 
 	return nil
 }
