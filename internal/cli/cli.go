@@ -20,6 +20,7 @@ func Start(tasklist *task.Tasks, args []string) error {
 	updateCmd := flag.NewFlagSet("update", flag.ExitOnError)
 	markInProgressCmd := flag.NewFlagSet("mark-in-progress", flag.ExitOnError)
 	markDoneCmd := flag.NewFlagSet("mark-done", flag.ExitOnError)
+	listCmd := flag.NewFlagSet("list", flag.ContinueOnError)
 
 	switch args[0] {
 	// "add" expects 1 argument: taskDescription (string)
@@ -108,6 +109,26 @@ func Start(tasklist *task.Tasks, args []string) error {
 		}
 
 		return tasklist.MarkDone(taskID)
+
+	// "list" takes one optional argument: statusFilter (string).
+	case "list":
+		if err := listCmd.Parse(args[1:]); err != nil {
+			return err
+		}
+
+		if listCmd.NArg() > 1 {
+			return errors.New("list accepts at most one status filter")
+		}
+
+		// if 'list' called without any additional arguments,
+		// statusFilter set to "all", which is the keyword used
+		// to trigger printing of every present task in tasklist
+		statusFilter := "all"
+		if listCmd.NArg() == 1 {
+			statusFilter = listCmd.Arg(0)
+		}
+
+		return tasklist.List(statusFilter)
 
 	default:
 		fmt.Println("unknown subcommand")
