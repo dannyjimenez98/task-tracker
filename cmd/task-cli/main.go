@@ -44,6 +44,12 @@ func main() {
 		panic(err)
 	}
 
+	// prevent JSON file from being rewritten when 'list' command is called
+	// nothing is written or changed to JSON file for this action
+	if os.Args[1] == "list" {
+		return
+	}
+
 	updatedTasklistJSON, err := json.MarshalIndent(tasklist, "", "  ")
 	if err != nil {
 		log.Fatalln("could not marshal data to json: ", err)

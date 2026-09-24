@@ -1,11 +1,263 @@
 package cli_test
 
 import (
+	"fmt"
+	"io"
+	"os"
+	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/dannyjimenez98/task-tracker/internal/cli"
 	"github.com/dannyjimenez98/task-tracker/internal/task"
 )
+
+func TestList(t *testing.T) {
+	createdAt := task.CustomTime{
+		Time: time.Date(2026, time.September, 20, 10, 0, 0, 0, time.UTC),
+	}
+	updatedAt := task.CustomTime{
+		Time: time.Date(2026, time.September, 21, 11, 30, 0, 0, time.UTC),
+	}
+
+	inputTasklist := []task.Task{
+		{
+			ID: 1, Description: "task one", Status: "todo",
+			CreatedAt: createdAt, UpdatedAt: updatedAt,
+		},
+		{
+			ID: 2, Description: "task two", Status: "in-progress",
+			CreatedAt: createdAt, UpdatedAt: updatedAt,
+		},
+		{
+			ID: 3, Description: "task three", Status: "done",
+			CreatedAt: createdAt, UpdatedAt: updatedAt,
+		},
+		{
+			ID: 4, Description: "task four", Status: "todo",
+			CreatedAt: createdAt, UpdatedAt: updatedAt,
+		},
+	}
+
+	// Expectations use fixed timestamps rather than the production formatter.
+	const timestamps = " 2026-09-20 10:00:00 +0000 UTC" +
+		" 2026-09-21 11:30:00 +0000 UTC"
+	const header = "ID DESCRIPTION STATUS CREATED UPDATED"
+
+	rows := []string{
+		"1 task one todo" + timestamps,
+		"2 task two in-progress" + timestamps,
+		"3 task three done" + timestamps,
+		"4 task four todo" + timestamps,
+	}
+
+	table := func(rows ...string) string {
+		return header + "\n" + strings.Join(rows, "\n") + "\n"
+	}
+
+	type testCase struct {
+		name       string
+		tasks      []task.Task
+		args       []string
+		wantOutput string
+		wantErr    bool
+	}
+	tests := []testCase{
+		{
+			name:       "list defaults to all",
+			tasks:      inputTasklist,
+			args:       []string{"list"},
+			wantOutput: table(rows...),
+		},
+		{
+			name:       "list explicit all",
+			tasks:      inputTasklist,
+			args:       []string{"list", "all"},
+			wantOutput: table(rows...),
+		},
+		{
+			name:       "list todo includes every matching task",
+			tasks:      inputTasklist,
+			args:       []string{"list", "todo"},
+			wantOutput: table(rows[0], rows[3]),
+		},
+		{
+			name:       "list in-progress",
+			tasks:      inputTasklist,
+			args:       []string{"list", "in-progress"},
+			wantOutput: table(rows[1]),
+		},
+		{
+			name:       "list done",
+			tasks:      inputTasklist,
+			args:       []string{"list", "done"},
+			wantOutput: table(rows[2]),
+		},
+		{
+			name: "list escapes table control characters",
+			tasks: []task.Task{
+				{
+					ID: 5, Description: "first\tsecond\nthird\rfourth",
+					Status:    "todo",
+					CreatedAt: createdAt, UpdatedAt: updatedAt,
+				},
+			},
+			args: []string{"list"},
+			wantOutput: table(
+				`5 first\tsecond\nthird\rfourth todo` + timestamps,
+			),
+		},
+	}
+
+	// Cover nil and initialized empty task slices with every supported filter.
+	emptyInputs := []struct {
+		name  string
+		tasks []task.Task
+	}{
+		{name: "nil task slice", tasks: nil},
+		{name: "empty task slice", tasks: []task.Task{}},
+	}
+	filters := []struct {
+		name string
+		args []string
+	}{
+		{name: "default", args: []string{"list"}},
+		{name: "all", args: []string{"list", "all"}},
+		{name: "todo", args: []string{"list", "todo"}},
+		{name: "in-progress", args: []string{"list", "in-progress"}},
+		{name: "done", args: []string{"list", "done"}},
+	}
+
+	for _, input := range emptyInputs {
+		for _, filter := range filters {
+			wantOutput := "no tasks to print\n"
+			if filter.name != "default" && filter.name != "all" {
+				wantOutput = fmt.Sprintf(
+					"no tasks found with a current status of \"%s\"\n",
+					filter.name,
+				)
+			}
+			tests = append(tests, testCase{
+				name:       input.name + "/" + filter.name,
+				tasks:      input.tasks,
+				args:       filter.args,
+				wantOutput: wantOutput,
+			})
+		}
+	}
+
+	// A nonempty list can also have no tasks matching a valid filter.
+	for _, status := range []string{"todo", "in-progress", "done"} {
+		var nonmatching []task.Task
+		for _, entry := range inputTasklist {
+			if entry.Status != status {
+				nonmatching = append(nonmatching, entry)
+			}
+		}
+		tests = append(tests, testCase{
+			name:  "no matching tasks/" + status,
+			tasks: nonmatching,
+			args:  []string{"list", status},
+			wantOutput: fmt.Sprintf(
+				"no tasks found with a current status of \"%s\"\n", status,
+			),
+		})
+	}
+
+	invalidInputs := []struct {
+		name string
+		args []string
+	}{
+		{name: "unknown status", args: []string{"list", "pending"}},
+		{name: "uppercase status", args: []string{"list", "TODO"}},
+		{name: "empty status", args: []string{"list", ""}},
+		{name: "padded status", args: []string{"list", " todo "}},
+		{name: "multiple statuses", args: []string{"list", "todo", "done"}},
+		{name: "extra argument after all", args: []string{"list", "all", "extra"}},
+		{name: "unknown flag", args: []string{"list", "--invalid"}},
+	}
+	for _, input := range invalidInputs {
+		tests = append(tests, testCase{
+			name:    input.name,
+			tasks:   inputTasklist,
+			args:    input.args,
+			wantErr: true,
+		})
+	}
+
+	// Ignore tabwriter's padding, but preserve line boundaries and row order.
+	normalizeOutput := func(output string) string {
+		output = strings.TrimSuffix(output, "\n")
+		if output == "" {
+			return ""
+		}
+		lines := strings.Split(output, "\n")
+		for i, line := range lines {
+			lines[i] = strings.Join(strings.Fields(line), " ")
+		}
+		return strings.Join(lines, "\n") + "\n"
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tasklist task.Tasks
+			if tt.tasks != nil {
+				tasklist.Tasks = make([]task.Task, len(tt.tasks))
+				copy(tasklist.Tasks, tt.tasks)
+			}
+
+			output, err := captureListOutput(t, func() error {
+				return cli.Start(&tasklist, tt.args)
+			})
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Start() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+			if got := normalizeOutput(output); got != tt.wantOutput {
+				t.Errorf("Start() output:\n%q\nwant:\n%q", got, tt.wantOutput)
+			}
+
+			// Verify every attribute, ordering, and nil-versus-empty slice state.
+			if !reflect.DeepEqual(tasklist.Tasks, tt.tasks) {
+				t.Errorf(
+					"list modified tasks:\ngot:  %#v\nwant: %#v",
+					tasklist.Tasks, tt.tasks,
+				)
+			}
+		})
+	}
+}
+
+// Do not use this helper in parallel tests: os.Stdout is process-wide.
+func captureListOutput(t *testing.T, run func() error) (string, error) {
+	t.Helper()
+
+	file, err := os.CreateTemp(t.TempDir(), "list-output-*")
+	if err != nil {
+		t.Fatalf("create output file: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := file.Close(); err != nil {
+			t.Errorf("close output file: %v", err)
+		}
+	})
+
+	originalStdout := os.Stdout
+	os.Stdout = file
+	defer func() {
+		os.Stdout = originalStdout
+	}()
+
+	runErr := run()
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		t.Fatalf("rewind output file: %v", err)
+	}
+	output, err := io.ReadAll(file)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	return string(output), runErr
+}
 
 func TestMarkInProgress(t *testing.T) {
 	inputTasklist := []task.Task{
